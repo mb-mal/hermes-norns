@@ -16,6 +16,87 @@
 - 🌿 Видообразование — изолированные популяции дивергируют
 - 🌧️ Погода, растения, порталы, старение и смерть
 
+## 📦 Установка
+
+### Зависимости
+
+```bash
+# Python 3.10+, pip
+python3 -m pip install Pillow pytest
+```
+
+### Клонирование
+
+```bash
+git clone https://github.com/mb-mal/hermes-norns.git
+cd hermes-norns
+```
+
+### Hermes Agent (опционально — для LLM-мозга)
+
+Hermes Norns использует Hermes Agent CLI для LLM-решений. Установи Hermes Agent согласно [документации](https://hermes-agent.nousresearch.com/docs):
+
+```bash
+# Установка Hermes Agent (если ещё не установлен)
+curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+
+# Настроить провайдера (DeepSeek, OpenAI, Anthropic, etc.)
+hermes setup
+```
+
+После установки Hermes CLI будет доступен как `hermes` в PATH. Игра автоматически вызывает `hermes -z "prompt"` для каждого решения Норна.
+
+## 🚀 Запуск
+
+### Консольный режим (без LLM, работает сразу)
+
+```bash
+cd hermes_brain/python
+
+# Новая игра в реальном времени
+python3 game.py --new
+
+# N тиков без UI
+python3 game.py --new --ticks 500
+```
+
+### С LLM-мозгом (Hermes Agent)
+
+```bash
+cd hermes_brain/python
+
+# Каждый Норн думает через LLM
+python3 game.py --new --llm --ticks 100
+```
+
+### Рендер мира (PIL)
+
+```bash
+cd hermes_brain/python
+python3 game.py --new --render
+# → ~/norns_screenshot.png
+```
+
+### Сохранения
+
+```bash
+# Автосейв каждые 300 тиков → ~/.hermes-norns/saves/autosave.norns
+python3 game.py --new
+
+# Загрузить
+python3 game.py --load autosave
+
+# Список сохранений
+python3 game.py --list-saves
+```
+
+### Тесты
+
+```bash
+cd hermes_brain
+python3 -m pytest tests/ -v
+```
+
 ## 🏗️ Архитектура
 
 ```
@@ -73,57 +154,6 @@ LLM возвращает структурированный JSON, который
 - Размер, цвет (RGB-пигменты), скорость, метаболизм
 - Пищевые предпочтения (herbivory/carnivory)
 - Всё выводится из генов через `get_phenotype()`
-
-## 🚀 Быстрый старт
-
-```bash
-# Клонировать
-git clone https://github.com/mb-mal/hermes-norns.git
-cd hermes-norns/hermes_brain/python
-
-# Запустить игру (консольный UI)
-python3 game.py --new
-
-# Или N тиков без UI
-python3 game.py --new --ticks 500
-
-# С LLM-мозгом (требуется Hermes Agent)
-python3 game.py --new --llm --ticks 100
-
-# Рендер мира в PNG
-python3 game.py --new --render
-
-# Загрузить сохранение
-python3 game.py --load autosave
-
-# Тесты
-cd .. && python3 -m pytest tests/ -v
-```
-
-## 🧪 Тесты
-
-98 тестов, TDD (RED → GREEN → REFACTOR):
-
-| Группа | Тестов | Что проверяет |
-|---|---|---|
-| `test_v02_features` | 12 | Погода, растения, старение, порталы |
-| `test_evolution` | 16 | Мендель, мутации, фитнес, фенотип, видообразование |
-| `test_action_packet` | 20 | Валидация JSON, whitelist, парсер, защита от читов |
-| `test_packet_world` | 5 | Применение эффектов: речь, обучение, отношения |
-| `test_edge_cases` | 45 | Adversarial: null/спуфинг/инъекции/dead norn/memory cap/invisible unicode/10K-char
-
-## 🗺️ Roadmap
-
-- [x] v0.1 — Базовый агент + архитектура
-- [x] v0.2 — Мир, мульти-агент, размножение
-- [x] v0.3 — Погода, растения, порталы, смерть
-- [x] v0.4 — Мендель, мутации, фитнес, фенотип
-- [x] v0.5 — JSON-протокол, валидатор, rich perception
-- [x] v0.5.1 — 45 adversarial тестов: null/спуфинг/инъекции/dead norn/invisible unicode
-- [x] v0.7 — PIL-рендерер мира (vision perception pipeline)
-- [x] v0.8 — Multi-agent LLM: batch + parallel Norn decisions
-- [x] v0.6 — C++ bridge: IPC-протокол + интеграционный гайд для openc2e
-- [x] v1.0 — Игра: save/load, консольный UI, игровой цикл, 104 теста
 
 ## 📄 Лицензия
 
