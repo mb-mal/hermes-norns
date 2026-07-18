@@ -405,6 +405,54 @@ class World:
             lines.append(f"  World: {', '.join(parts)}")
         return "\n".join(lines)
 
+    def to_dict(self) -> dict:
+        """Serialize world for save/load."""
+        import pickle
+        return {
+            "tick_count": self.tick_count,
+            "weather": self.weather,
+            "weather_timer": self.weather_timer,
+            "norns": [pickle.dumps(n).hex() for n in self.norns],
+            "objects": [{
+                "name": o.name, "obj_type": o.obj_type,
+                "x": o.x, "y": o.y, "edible": o.edible,
+                "nutrition": o.nutrition, "fun": o.fun,
+                "growth": o.growth, "growth_rate": o.growth_rate,
+                "danger_level": o.danger_level, "tool_type": o.tool_type,
+                "link_x": o.link_x, "link_y": o.link_y,
+            } for o in self.objects],
+            "event_log": self.event_log[-100:],
+            "mutation_log": self.mutation_log[-100:],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "World":
+        """Deserialize world from save."""
+        import pickle
+        world = cls()
+        world.tick_count = data["tick_count"]
+        world.weather = data["weather"]
+        world.weather_timer = data.get("weather_timer", 200)
+        world.event_log = data.get("event_log", [])
+        world.mutation_log = data.get("mutation_log", [])
+        world.norns = [pickle.loads(bytes.fromhex(n)) for n in data["norns"]]
+        for o in data["objects"]:
+            obj = WorldObject(
+                name=o["name"], obj_type=o["obj_type"],
+                x=o["x"], y=o["y"],
+                edible=o.get("edible", False),
+                nutrition=o.get("nutrition", 0),
+                fun=o.get("fun", 0),
+                growth=o.get("growth", 0),
+                growth_rate=o.get("growth_rate", 0.02),
+                danger_level=o.get("danger_level", 0),
+                tool_type=o.get("tool_type", ""),
+                link_x=o.get("link_x", 0),
+                link_y=o.get("link_y", 0),
+            )
+            world.objects.append(obj)
+        return world
+
 
 # ── Demo ──────────────────────────────────────────────────────────
 

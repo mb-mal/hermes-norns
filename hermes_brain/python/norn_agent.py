@@ -79,8 +79,9 @@ class NornDNA:
         return self._genome.get_phenotype()
 
     def __getattr__(self, name):
-        """Forward unknown attributes to genome."""
-        if name.startswith("_"):
+        """Forward unknown attributes to genome. Avoids recursion with pickle."""
+        if name.startswith("_") or name in ("alleles", "mutation_rate", "set_alleles", 
+                                             "force_mutation", "breed_with", "get_phenotype"):
             raise AttributeError(name)
         if self._genome and name in self._genome.alleles:
             return self._genome.alleles[name].expressed

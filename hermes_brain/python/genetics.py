@@ -101,8 +101,13 @@ class NornGenome:
         return self.alleles.get("metabolism", AllelePair(0, 0)).expressed
 
     def __getattr__(self, name):
-        """Fallback for trait access."""
-        if name in self.alleles:
+        """Fallback for trait access. Guarded against pickle recursion."""
+        if name.startswith("_") or name == "alleles":
+            raise AttributeError(name)
+        # alleles may not be set during unpickling
+        if "_alleles" not in self.__dict__ and "alleles" not in self.__dict__:
+            raise AttributeError(name)
+        if name in getattr(self, "alleles", {}):
             return self.alleles[name].expressed
         raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
 
