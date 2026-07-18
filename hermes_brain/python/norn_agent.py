@@ -14,6 +14,7 @@ Usage:
 import json
 import sys
 import os
+import random
 from dataclasses import dataclass, field
 from typing import Optional
 from pathlib import Path
@@ -114,51 +115,73 @@ Valid actions:
 
 
 def rule_based_action(perception: dict) -> dict:
-    """Simple rule-based fallback (no LLM needed)."""
+    """Rule-based agent with proportional action selection."""
     drives = perception.get("drives", {})
     visible = perception.get("visible_objects", [])
     dna = perception.get("dna_traits", {})
 
-    # Priority order
+    # Build weighted action candidates
+    candidates = []  # (weight, action_dict)
+
+    # PAIN / FEAR — emergency override
     if drives.get("pain", 0) > 0.7:
-        return {"action": "TRAVEL", "target": "away", "thought": "I'm in pain — need to escape!"}
-
+        return {"action": "TRAVEL", "target": "away", "thought": "I'm in pain — escaping!"}
     if drives.get("fear", 0) > 0.6:
-        return {"action": "TRAVEL", "target": "away", "thought": "I'm scared — running away!"}
+        return {"action": "TRAVEL", "target": "away", "thought": "Scared — running away!"}
 
-    if drives.get("fatigue", 0) > 0.7:
-        return {"action": "REST", "target": "", "thought": "So tired... need sleep"}
+    # FATIGUE — high priority
+    if drives.get("fatigue", 0) > 0.6:
+        candidates.append((drives["fatigue"] * 2.0, {"action": "REST", "target": "", "thought": "So tired... need sleep"}))
 
-    if drives.get("hunger", 0) > 0.5:
-        food = [o for o in visible if o.get("type") == "food"]
-        if food:
-            target = min(food, key=lambda o: o.get("distance", 999))
-            return {"action": "EAT", "target": target["name"], "thought": "Food! Eating now."}
-        return {"action": "TRAVEL", "target": "forward", "thought": "Hungry — looking for food"}
+    # HUNGER
+    food = [o for o in visible if o.get("type") == "food"]
+    if food and drives.get("hunger", 0) > 0.2:
+        target = min(food, key=lambda o: o.get("distance", 999))
+        w = drives.get("hunger", 0) * 1.5
+        candidates.append((w, {"action": "EAT", "target": target["name"], "thought": "Eating nearby food."}))
+    elif drives.get("hunger", 0) > 0.3:
+        candidates.append((0.3, {"action": "TRAVEL", "target": "forward", "thought": "Hungry — looking for food"}))
 
-    if drives.get("boredom", 0) > 0.5 and dna.get("playfulness", 0.5) > 0.4:
-        toys = [o for o in visible if o.get("type") == "toy"]
-        if toys:
-            target = min(toys, key=lambda o: o.get("distance", 999))
-            return {"action": "PLAY", "target": target["name"], "thought": "Bored — let's play!"}
+    # PLAY
+    toys = [o for o in visible if o.get("type") == "toy"]
+    if toys and dna.get("playfulness", 0.3) > 0.2:
+        target = min(toys, key=lambda o: o.get("distance", 999))
+        w = max(drives.get("boredom", 0), 0.3) * dna.get("playfulness", 0.5)
+        candidates.append((w, {"action": "PLAY", "target": target["name"], "thought": "Let's play!"}))
 
-    if drives.get("loneliness", 0) > 0.5 and dna.get("sociability", 0.5) > 0.4:
-        norns = [o for o in visible if o.get("type") == "norn"]
-        if norns:
-            target = min(norns, key=lambda o: o.get("distance", 999))
-            return {"action": "APPROACH", "target": target["name"], "thought": "I see another Norn! Going to say hi."}
+    # SOCIALIZE
+    norns_visible = [o for o in visible if o.get("type") == "norn"]
+    if norns_visible and dna.get("sociability", 0.3) > 0.2:
+        target = min(norns_visible, key=lambda o: o.get("distance", 999))
+        w = max(drives.get("loneliness", 0), 0.3) * dna.get("sociability", 0.5)
+        candidates.append((w, {"action": "APPROACH", "target": target["name"], "thought": "Going to say hi!"}))
 
-    if drives.get("sex_drive", 0) > 0.6:
-        norns = [o for o in visible if o.get("type") == "norn"]
-        if norns:
-            return {"action": "BREED", "target": norns[0]["name"], "thought": "Time to find a mate!"}
+    # BREED
+    if norns_visible and drives.get("sex_drive", 0) > 0.5:
+        candidates.append((0.4, {"action": "BREED", "target": norns_visible[0]["name"], "thought": "Time to mate!"}))
 
-    if dna.get("curiosity", 0.5) > 0.6:
-        interesting = [o for o in visible if o.get("type") not in ("food", "toy", "norn")]
-        if interesting:
-            return {"action": "APPROACH", "target": interesting[0]["name"], "thought": "What's that? Let me check it out."}
+    # EXPLORE (curiosity)
+    interesting = [o for o in visible if o.get("type") not in ("food", "toy", "norn")]
+    if interesting and dna.get("curiosity", 0.3) > 0.3:
+        w = dna.get("curiosity", 0.5) * 0.5
+        candidates.append((w, {"action": "APPROACH", "target": interesting[0]["name"], "thought": "What's that?"}))
 
-    return {"action": "QUIET", "target": "", "thought": "Nothing urgent. Just resting."}
+    # Default: travel randomly or rest
+    candidates.append((0.15, {"action": "QUIET", "target": "", "thought": "Nothing urgent. Resting."}))
+
+    if not candidates:
+        return {"action": "QUIET", "target": "", "thought": "..."}
+
+    # Weighted random selection
+    total = sum(w for w, _ in candidates)
+    r = random.uniform(0, total)
+    cumulative = 0
+    for w, action in candidates:
+        cumulative += w
+        if r <= cumulative:
+            return action
+
+    return candidates[-1][1]
 
 
 # ── Main Agent Loop ─────────────────────────────────────────────

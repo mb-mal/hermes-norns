@@ -7,3 +7,4 @@ out/
 .*.sw?
 *~
 .DS_Store
+__pycache__/
