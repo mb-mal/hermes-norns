@@ -189,15 +189,19 @@ def format_perception_v2(perception: dict) -> str:
     lines.append(WORLD_RULES)
     lines.append("")
 
-    # ── DECISION PROMPT ──
+    # ── DECISION ──
     lines.append("=== YOUR DECISION ===")
-    lines.append(f"You are at tick {tick}. What do you do RIGHT NOW?")
-    lines.append("Think about your highest drives FIRST, then consider your personality.")
+    lines.append("Output exactly ONE LINE containing a JSON object. No text before or after.")
+    lines.append("Do NOT wrap in markdown. Do NOT add commentary. Just the JSON.")
     lines.append("")
-    lines.append("Respond with ONLY a JSON object (no explanation, no markdown, no backticks):")
-    lines.append('{"action": "EAT|APPROACH|PUSH|PICKUP|DROP|REST|PLAY|TRAVEL|BREED|SPEAK|QUIET",')
-    lines.append(' "target": "object name or direction (empty string if none)",')
-    lines.append(' "thought": "one sentence — why you chose this action"}')
+    lines.append("Required: action, target, thought. Optional: mood, say, learn, social.")
+    lines.append('Example: {"action":"PLAY","target":"trampoline","thought":"bored and fun nearby!","mood":"excited","learn":{},"social":{"toward":"Luna","feeling":"friendly"}}')
+    lines.append("")
+    lines.append("Valid actions: EAT REST PLAY TRAVEL APPROACH BREED SPEAK PUSH PICKUP DROP QUIET")
+    lines.append("Valid moods: happy sad excited scared angry curious content playful tired calm loving lonely nervous proud confused")
+    lines.append("Valid social feelings: friendly neutral hostile loving curious scared playful protective")
+    lines.append("")
+    lines.append("NOW — your JSON:")
 
     return "\n".join(lines)
 

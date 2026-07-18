@@ -1,104 +1,119 @@
-![openc2e logo](https://raw.githubusercontent.com/ligfx/openc2e/master/Openc2e-logo2008.png)
+# 🧠 Hermes Norns
 
-# openc2e
+**Искусственная жизнь на базе Hermes Agent + современные ML-модели.**
 
-openc2e is a free and open-source game engine for the [_Creatures_](https://creatures.wiki) artificial life games.
+Форк [openc2e](https://github.com/openc2e/openc2e) — open-source движка легендарной игры Creatures (1996, Стив Гранд). Норны получают LLM-мозг вместо классической нейросети.
 
-The goal is to allow you to play games such as Creatures, Creatures 2, Creatures 3, Docking Station and more, on many different platforms.
+## 🎯 Что это
 
-Want to know more? Come visit us on the [Caos Coding Cave Discord](https://discord.gg/rWFC3b3).
+Классический Creatures: цифровые существа (Норны) с биохимией, генетикой и нейросетевым мозгом живут в симулированном мире — едят, играют, размножаются, эволюционируют.
 
-# Games
+**Hermes Norns** заменяет фиксированный нейросетевой мозг на LLM-агента:
+- 🧠 Каждый Норн думает через Hermes Agent CLI (DeepSeek / Llama / Qwen)
+- 🧬 Менделевская генетика с доминантными/рецессивными аллелями
+- 🔬 Мутации при размножении (rate ~2%)
+- 📊 Фитнес-отбор средой — разные стратегии → разная выживаемость
+- 🌿 Видообразование — изолированные популяции дивергируют
+- 🌧️ Погода, растения, порталы, старение и смерть
 
-openc2e is intended to support:
+## 🏗️ Архитектура
 
-* Creatures (1996)
-* Creatures 2 (1998)
-* Creatures 3 (1999)
-* Docking Station (2001)
-* Creatures Playground (1999)
-* Creatures Adventures (2000)
-
-# Status
-
-## Working
-
-* Agents (COBs) work
-* Imperfect physics
-* Creatures biochemistry
-* Sound effects
-
-## Todo
-
-* Actual creatures (C3+ creatures work somewhat, C1 and C2 ones don't work at all)
-* Physics improvements (Especially C3+)
-* Network ability (the Docking Station warp)
-* Serialization (world saving, creature exporting, ...)
-
-There are lots of [open issues](https://github.com/openc2e/openc2e/issues) that still need solving.
-
-# Building
-
-## Dependencies
-
-openc2e depends on:
-
-* SDL2
-  * SDL2_mixer
-* Python
-* CMake
-* Boost.Serialization (optional)
-
-### Linux
-
-#### Ubuntu
-
-On Ubuntu 18.10 and up, you'll need these packages:
-
-```bash
-sudo apt-get install \
-  build-essential \
-  libsdl2-dev \
-  libsdl2-mixer-dev \
-  cmake
+```
+openc2e Engine (C++)          ← форк, пока не интегрирован
+        │
+   perception JSON            ← drives, visible objects, weather, nearby_norns
+        ▼
+perception_v2.py              ← rich prompt: life stage, biochemistry, memories
+        │
+        ▼
+llm_agent.py → Hermes CLI     ← hermes -z "prompt" → JSON action packet
+        │
+   NornActionPacket            ← валидация: whitelist actions, moods, social
+        ▼
+world_sim.py                  ← применяет эффекты безопасно
 ```
 
-### macOS
+## 📦 NornActionPacket — JSON-протокол
 
-Install dependencies using [Homebrew](https://brew.sh):
+LLM возвращает структурированный JSON, который **валидируется** перед применением:
 
-```bash
-brew install cmake
+```json
+{
+  "action": "PLAY",
+  "target": "trampoline",
+  "thought": "So bored! Trampoline is right there!",
+  "mood": "excited",
+  "say": "",
+  "learn": {},
+  "social": {"toward": "Luna", "feeling": "playful"}
+}
 ```
 
-### Windows
+**Защита от галлюцинаций:**
+- `action` — whitelist (неизвестное → QUIET)
+- `mood` — whitelist из 15 значений
+- `social.feeling` — whitelist из 8 значений
+- `say` — capped 60 символов
+- `learn` — макс 3 записи, значения capped 30 символов
+- Неизвестные поля — **дропаются** (нельзя читерить `hunger: 0`)
 
-Install [Python](https://www.microsoft.com/en-us/p/python-38/9mssztt1n39l#activetab=pivot:overviewtab), and Visual Studio's [C++ CMake Tools for Windows](https://docs.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=vs-2019#installation).
+## 🧬 Эволюция
 
-Open the folder in Visual Studio and it will automatically run CMake and set up the build system.
+### Генетика
+- 16 traits с аллельными парами (dominant/recessive)
+- Менделевское наследование: ребёнок получает случайный аллель от каждого родителя
+- Мутации: ±0.25 delta, rate 2%, таргет: dominant/recessive/random
 
-## Compiling
+### Фитнес
+- +0.01/тик выживания
+- Бонусы: сытость +0.005, социализация +0.003
+- Разные стратегии → разный фитнес → естественный отбор
 
-Create a new build directory and compile:
+### Фенотип
+- Размер, цвет (RGB-пигменты), скорость, метаболизм
+- Пищевые предпочтения (herbivory/carnivory)
+- Всё выводится из генов через `get_phenotype()`
+
+## 🚀 Быстрый старт
 
 ```bash
-cmake -B build .
-make -C build openc2e -j4
+# Клонировать
+git clone https://github.com/mb-mal/hermes-norns.git
+cd hermes-norns/hermes_brain/python
+
+# Демо (rule-based, мгновенно)
+python3 run_demo.py --ticks 500
+
+# Тесты
+cd .. && python3 -m pytest tests/ -v
+
+# LLM-brain (требуется Hermes Agent)
+python3 test_hermes_cli_v2.py
 ```
 
-## Running
+## 🧪 Тесты
 
-You should provide a path to a game's data files with the `-d` or `--data-path` flag:
+53 теста, TDD (RED → GREEN → REFACTOR):
 
-```bash
-./build/openc2e -d /path/to/Creatures2
-```
+| Группа | Тестов | Что проверяет |
+|---|---|---|
+| `test_v02_features` | 12 | Погода, растения, старение, порталы |
+| `test_evolution` | 16 | Мендель, мутации, фитнес, фенотип, видообразование |
+| `test_action_packet` | 20 | Валидация JSON, whitelist, парсер, защита от читов |
+| `test_packet_world` | 5 | Применение эффектов: речь, обучение, отношения |
 
-The engine will try to guess the game based on files in the directory. If it can't decide, it will default to C3/DS.
+## 🗺️ Roadmap
 
-## Advanced Usage
+- [x] v0.1 — Базовый агент + архитектура
+- [x] v0.2 — Мир, мульти-агент, размножение
+- [x] v0.3 — Погода, растения, порталы, смерть
+- [x] v0.4 — Мендель, мутации, фитнес, фенотип
+- [x] v0.5 — JSON-протокол, валидатор, rich perception
+- [ ] v0.6 — C++ bridge (интеграция с openc2e)
+- [ ] v0.7 — Vision (LLaVA для визуального восприятия мира)
+- [ ] v0.8 — Multi-agent с LLM (каждый Норн — свой LLM-вызов)
+- [ ] v1.0 — Полноценная игра
 
-To see an overview of all available options, use `-h` / `--help`:
-```bash
-./build/openc2e --help
-```
+## 📄 Лицензия
+
+LGPL v2 (наследовано от openc2e)

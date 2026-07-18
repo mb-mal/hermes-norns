@@ -59,9 +59,11 @@ class NornBody:
     anger: float = 0.1
     sex_drive: float = 0.0
     crowded: float = 0.1
+    mood: str = "calm"
 
     # Memory
     memory_log: list = field(default_factory=list)
+    relationships: dict = field(default_factory=dict)
 
     def distance_to(self, obj: WorldObject) -> float:
         return math.sqrt((self.x - obj.x)**2 + (self.y - obj.y)**2)
@@ -242,6 +244,39 @@ class World:
             if obj.name == norn.name:
                 obj.x = norn.x
                 obj.y = norn.y
+
+    def apply_packet_effects(self, norn: NornBody, packet) -> None:
+        """Apply safe side-effects from a validated NornActionPacket.
+        Invalid (coerced) packets produce NO side-effects."""
+        if not getattr(packet, "valid", False):
+            return
+
+        # Mood → stored on body (observable state)
+        if packet.mood:
+            norn.mood = packet.mood
+
+        # Learn → vocabulary (capped by validator)
+        for word, meaning in packet.learn.items():
+            norn.agent.state.learned_words[word] = meaning
+
+        # Say → nearby Norns hear it (within 200px)
+        if packet.say:
+            self.event_log.append(f"💬 {norn.name} says: '{packet.say}'")
+            for other in self.norns:
+                if other.name == norn.name or not other.alive:
+                    continue
+                d = math.sqrt((norn.x - other.x) ** 2 + (norn.y - other.y) ** 2)
+                if d <= 200:
+                    other.agent.state.memories.append(
+                        f"{norn.name} said: '{packet.say}'")
+                    other.agent.state.memories = other.agent.state.memories[-50:]
+
+        # Social → relationship map
+        if packet.social:
+            toward = packet.social.get("toward", "")
+            feeling = packet.social.get("feeling", "neutral")
+            if toward:
+                norn.relationships[toward] = feeling
 
     def _check_death(self, norn: NornBody):
         """Check if Norn dies from old age or extreme conditions."""
