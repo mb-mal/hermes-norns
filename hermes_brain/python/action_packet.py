@@ -199,7 +199,9 @@ def parse_llm_response(text: str) -> NornActionPacket:
                 continue
 
         if isinstance(data, dict) and "action" in data:
-            return NornActionPacket.from_dict(data)
+            packet = NornActionPacket.from_dict(data)
+            if packet.valid:
+                return packet
 
     # 4. Garbage — return invalid QUIET
     return NornActionPacket(action="QUIET", valid=False)

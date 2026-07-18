@@ -247,9 +247,12 @@ class World:
 
     def apply_packet_effects(self, norn: NornBody, packet) -> None:
         """Apply safe side-effects from a validated NornActionPacket.
-        Invalid (coerced) packets produce NO side-effects."""
+        Invalid (coerced) packets produce NO side-effects.
+        Dead norns cannot act (speech/etc has no effect on others)."""
         if not getattr(packet, "valid", False):
             return
+        if not norn.alive:
+            return  # dead norns don't produce effects
 
         # Mood → stored on body (observable state)
         if packet.mood:
