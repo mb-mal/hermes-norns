@@ -300,9 +300,29 @@ class World:
                         norn.y = obj.link_y
                         self.event_log.append(f"🌀 {norn.name} stepped through portal!")
 
-            # Build perception
+            # Build perception with rich context
+            # Gather nearby Norn info
+            nearby_norns = []
+            for other in self.norns:
+                if other.name != norn.name and other.alive:
+                    d = norn.distance_to(WorldObject(other.name, "norn", other.x, other.y))
+                    if d < 300:
+                        other_dna = other.agent.state.dna
+                        nearby_norns.append({
+                            "name": other.name,
+                            "distance": round(d),
+                            "species": other.species_id or "unknown",
+                            "personality": f"curious={other_dna.curiosity:.2f}, social={other_dna.sociability:.2f}, "
+                                          f"playful={other_dna.playfulness:.2f}, cautious={other_dna.cautiousness:.1f}",
+                        })
+
             perception = {
                 "tick": self.tick_count,
+                "age": norn.age,
+                "species_id": norn.species_id or "Nornus_vulgaris",
+                "life_stage": norn.life_stage,
+                "weather": self.weather,
+                "fitness": norn.fitness,
                 "drives": {
                     "hunger": norn.hunger, "thirst": norn.thirst,
                     "fatigue": norn.fatigue, "boredom": norn.boredom,
@@ -310,11 +330,14 @@ class World:
                     "pain": norn.pain, "anger": norn.anger,
                     "sex_drive": norn.sex_drive, "crowded": norn.crowded,
                 },
+                "biochemistry": {"dopamine": 0.5, "adrenaline": norn.fear * 0.8,
+                                "cortisol": norn.fear * 0.6 + norn.pain * 0.5,
+                                "oxytocin": 1.0 - norn.loneliness},
                 "visible_objects": norn.visible_objects(self.objects),
+                "nearby_norns": nearby_norns,
                 "learned_words": norn.agent.state.learned_words,
                 "recent_memories": norn.agent.state.memories[-10:],
                 "dna_traits": norn.agent.state.dna.__dict__ if norn.agent.state.dna else {},
-                "life_stage": norn.life_stage,
             }
 
             action = norn.agent.perceive(perception)
