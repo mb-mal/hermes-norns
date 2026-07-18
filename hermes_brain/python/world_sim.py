@@ -19,12 +19,22 @@ from norn_agent import NornAgent, NornDNA, rule_based_action
 @dataclass
 class WorldObject:
     name: str
-    obj_type: str  # food, toy, portal, plant, tool, norn
+    obj_type: str  # food, toy, portal, plant, tool, norn, predator
     x: float
     y: float
     edible: bool = False
     nutrition: float = 0.0
     fun: float = 0.0
+    # Plant properties
+    growth: float = 0.0
+    growth_rate: float = 0.02
+    # Predator properties
+    danger_level: float = 0.0
+    # Tool properties
+    tool_type: str = ""
+    # Portal properties
+    link_x: float = 0.0
+    link_y: float = 0.0
 
 @dataclass
 class NornBody:
@@ -35,6 +45,7 @@ class NornBody:
     agent: NornAgent
     alive: bool = True
     age: int = 0
+    max_age: int = 12000  # ~10 min at 50ms/tick
     life_stage: str = "baby"
     hunger: float = 0.5
     fatigue: float = 0.3
@@ -82,6 +93,8 @@ class World:
         self.norns: list[NornBody] = []
         self.tick_count = 0
         self.event_log: list[str] = []
+        self.weather = "sunny"
+        self.weather_timer = random.randint(60, 200)
 
     def add_object(self, obj: WorldObject):
         self.objects.append(obj)
@@ -225,16 +238,47 @@ class World:
                 obj.x = norn.x
                 obj.y = norn.y
 
+    def _check_death(self, norn: NornBody):
+        """Check if Norn dies from old age or extreme conditions."""
+        if norn.age > norn.max_age:
+            norn.alive = False
+            self.event_log.append(f"💀 {norn.name} died of old age at {norn.life_stage}")
+        elif norn.hunger >= 1.0 and norn.age > 100:
+            # Starvation
+            if random.random() < 0.02:
+                norn.alive = False
+                self.event_log.append(f"💀 {norn.name} starved to death")
+
     def tick(self):
         """One simulation step."""
         self.tick_count += 1
         self.event_log = []
+
+        # Weather system
+        self.weather_timer -= 1
+        if self.weather_timer <= 0:
+            self.weather = random.choice(["sunny", "cloudy", "rainy"])
+            self.weather_timer = random.randint(100, 400)
+
+        # Plant growth + portal teleport
+        for obj in self.objects:
+            if obj.obj_type == "plant":
+                mult = 2.0 if self.weather == "rainy" else 1.0
+                obj.growth = min(1.0, obj.growth + obj.growth_rate * mult)
+                if obj.growth >= 1.0:
+                    self.spawn_food(f"fruit_from_{obj.name}", obj.x + random.uniform(-20, 20), obj.y + random.uniform(-20, 20), 25)
+                    obj.growth = 0.0
 
         for norn in self.norns:
             if not norn.alive:
                 continue
 
             self._update_drives(norn)
+            self._check_death(norn)
+
+            # Only process living norns
+            if not norn.alive:
+                continue
 
             # Build perception
             perception = {
@@ -256,8 +300,19 @@ class World:
             action = norn.agent.perceive(perception)
             self._execute_action(norn, action)
 
+            # Portal teleport — check if standing on a portal (after action, so teleport sticks)
+            for obj in self.objects:
+                if obj.obj_type == "portal" and obj.link_x != 0:
+                    if abs(norn.x - obj.x) < 20 and abs(norn.y - obj.y) < 20:
+                        norn.x = obj.link_x
+                        norn.y = obj.link_y
+                        self.event_log.append(f"🌀 {norn.name} stepped through portal!")
+
     def status(self) -> str:
         lines = [f"═══ Tick {self.tick_count} ═══"]
+        # Weather indicator
+        weather_icons = {"sunny": "☀️", "cloudy": "☁️", "rainy": "🌧️"}
+        lines.append(f"  Weather: {weather_icons.get(self.weather, '?')} {self.weather}")
         for norn in self.norns:
             lines.append(
                 f"  {norn.name} [{norn.life_stage}] "
