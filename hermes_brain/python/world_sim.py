@@ -46,6 +46,8 @@ class NornBody:
     alive: bool = True
     age: int = 0
     max_age: int = 12000  # ~10 min at 50ms/tick
+    fitness: float = 0.0
+    species_id: Optional[str] = "Nornus_vulgaris"
     life_stage: str = "baby"
     hunger: float = 0.5
     fatigue: float = 0.3
@@ -93,6 +95,7 @@ class World:
         self.norns: list[NornBody] = []
         self.tick_count = 0
         self.event_log: list[str] = []
+        self.mutation_log: list[str] = []
         self.weather = "sunny"
         self.weather_timer = random.randint(60, 200)
 
@@ -222,11 +225,13 @@ class World:
                 baby_name = f"{norn.name[:3]}{target_norn.name[:3]}_{random.randint(100,999)}"
                 baby_x = (norn.x + target_norn.x) / 2
                 baby_y = (norn.y + target_norn.y) / 2
-                baby_dna = NornDNA(name=baby_name)
-                if norn.agent.state.dna and target_norn.agent.state.dna:
-                    for trait in ["curiosity", "aggression", "sociability", "playfulness", "cautiousness", "intelligence"]:
-                        setattr(baby_dna, trait, (getattr(norn.agent.state.dna, trait) + getattr(target_norn.agent.state.dna, trait)) / 2)
-                self.add_norn(baby_name, baby_x, baby_y, baby_dna)
+                # Mendelian breeding via NornDNA
+                mom_dna = norn.agent.state.dna
+                dad_dna = target_norn.agent.state.dna
+                baby_dna = mom_dna.breed_with(dad_dna, baby_name)
+                baby = self.add_norn(baby_name, baby_x, baby_y, baby_dna)
+                # Inherit species from parents
+                baby.species_id = norn.species_id or target_norn.species_id or "Nornus_vulgaris"
                 self.event_log.append(f"🐣 {baby_name} was born! ({norn.name} + {target_norn.name})")
 
         elif act == "QUIET":
@@ -276,9 +281,24 @@ class World:
             self._update_drives(norn)
             self._check_death(norn)
 
+            # Fitness: surviving longer increases fitness
+            norn.fitness += 0.01  # base survival fitness
+            if norn.hunger < 0.5:
+                norn.fitness += 0.005  # bonus for being well-fed
+            if norn.loneliness < 0.5:
+                norn.fitness += 0.003  # bonus for social connection
+
             # Only process living norns
             if not norn.alive:
                 continue
+
+            # Portal teleport — check BEFORE action (so teleport happens first)
+            for obj in self.objects:
+                if obj.obj_type == "portal" and obj.link_x != 0:
+                    if abs(norn.x - obj.x) < 20 and abs(norn.y - obj.y) < 20:
+                        norn.x = obj.link_x
+                        norn.y = obj.link_y
+                        self.event_log.append(f"🌀 {norn.name} stepped through portal!")
 
             # Build perception
             perception = {
@@ -299,14 +319,6 @@ class World:
 
             action = norn.agent.perceive(perception)
             self._execute_action(norn, action)
-
-            # Portal teleport — check if standing on a portal (after action, so teleport sticks)
-            for obj in self.objects:
-                if obj.obj_type == "portal" and obj.link_x != 0:
-                    if abs(norn.x - obj.x) < 20 and abs(norn.y - obj.y) < 20:
-                        norn.x = obj.link_x
-                        norn.y = obj.link_y
-                        self.event_log.append(f"🌀 {norn.name} stepped through portal!")
 
     def status(self) -> str:
         lines = [f"═══ Tick {self.tick_count} ═══"]

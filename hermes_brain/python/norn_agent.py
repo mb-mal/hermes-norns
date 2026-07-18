@@ -23,14 +23,68 @@ from pathlib import Path
 
 @dataclass
 class NornDNA:
-    """Personality traits derived from creature genetics."""
+    """Personality traits derived from creature genetics.
+    Now backed by NornGenome with allele pairs."""
     name: str = "Unnamed"
+    _genome: object = field(default=None, repr=False)
+
+    # Legacy scalar traits — backed by genome
     curiosity: float = 0.5
     aggression: float = 0.3
     sociability: float = 0.6
     intelligence: float = 0.5
     playfulness: float = 0.5
     cautiousness: float = 0.4
+
+    def __post_init__(self):
+        from genetics import NornGenome
+        if self._genome is None:
+            self._genome = NornGenome()
+            # Sync scalar traits → genome (only for newly created genome)
+            for trait in ["curiosity", "aggression", "sociability", "intelligence", "playfulness", "cautiousness"]:
+                v = getattr(self, trait)
+                self._genome.set_alleles(trait, dominant=v, recessive=v * 0.7)
+
+    @property
+    def alleles(self) -> dict:
+        return self._genome.alleles
+
+    @property
+    def mutation_rate(self) -> float:
+        return self._genome.mutation_rate
+
+    @mutation_rate.setter
+    def mutation_rate(self, val: float):
+        self._genome.mutation_rate = val
+
+    def set_alleles(self, trait: str, dominant: float, recessive: float):
+        self._genome.set_alleles(trait, dominant, recessive)
+        if hasattr(self, trait):
+            setattr(self, trait, dominant)
+
+    def force_mutation(self, trait: str, delta: float):
+        self._genome.force_mutation(trait, delta)
+        if hasattr(self, trait) and trait in self._genome.alleles:
+            setattr(self, trait, self._genome.alleles[trait].expressed)
+
+    def breed_with(self, other: "NornDNA", child_name: str) -> "NornDNA":
+        child_genome = self._genome.breed_with(other._genome, child_name)
+        child = NornDNA(name=child_name, _genome=child_genome)
+        for trait in ["curiosity", "aggression", "sociability", "intelligence", "playfulness", "cautiousness"]:
+            if trait in child_genome.alleles:
+                setattr(child, trait, child_genome.alleles[trait].expressed)
+        return child
+
+    def get_phenotype(self) -> dict:
+        return self._genome.get_phenotype()
+
+    def __getattr__(self, name):
+        """Forward unknown attributes to genome."""
+        if name.startswith("_"):
+            raise AttributeError(name)
+        if self._genome and name in self._genome.alleles:
+            return self._genome.alleles[name].expressed
+        raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
 
 @dataclass
 class NornState:
