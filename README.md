@@ -93,7 +93,7 @@ python3 test_hermes_cli_v2.py
 
 ## 🧪 Тесты
 
-53 теста, TDD (RED → GREEN → REFACTOR):
+98 тестов, TDD (RED → GREEN → REFACTOR):
 
 | Группа | Тестов | Что проверяет |
 |---|---|---|
@@ -101,6 +101,7 @@ python3 test_hermes_cli_v2.py
 | `test_evolution` | 16 | Мендель, мутации, фитнес, фенотип, видообразование |
 | `test_action_packet` | 20 | Валидация JSON, whitelist, парсер, защита от читов |
 | `test_packet_world` | 5 | Применение эффектов: речь, обучение, отношения |
+| `test_edge_cases` | 45 | Adversarial: null/спуфинг/инъекции/dead norn/memory cap/invisible unicode/10K-char
 
 ## 🗺️ Roadmap
 
@@ -109,6 +110,7 @@ python3 test_hermes_cli_v2.py
 - [x] v0.3 — Погода, растения, порталы, смерть
 - [x] v0.4 — Мендель, мутации, фитнес, фенотип
 - [x] v0.5 — JSON-протокол, валидатор, rich perception
+- [x] v0.5.1 — 45 adversarial тестов: null/спуфинг/инъекции/dead norn/invisible unicode
 - [ ] v0.6 — C++ bridge (интеграция с openc2e)
 - [ ] v0.7 — Vision (LLaVA для визуального восприятия мира)
 - [ ] v0.8 — Multi-agent с LLM (каждый Норн — свой LLM-вызов)
