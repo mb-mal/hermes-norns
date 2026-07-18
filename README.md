@@ -81,14 +81,23 @@ LLM возвращает структурированный JSON, который
 git clone https://github.com/mb-mal/hermes-norns.git
 cd hermes-norns/hermes_brain/python
 
-# Демо (rule-based, мгновенно)
-python3 run_demo.py --ticks 500
+# Запустить игру (консольный UI)
+python3 game.py --new
+
+# Или N тиков без UI
+python3 game.py --new --ticks 500
+
+# С LLM-мозгом (требуется Hermes Agent)
+python3 game.py --new --llm --ticks 100
+
+# Рендер мира в PNG
+python3 game.py --new --render
+
+# Загрузить сохранение
+python3 game.py --load autosave
 
 # Тесты
 cd .. && python3 -m pytest tests/ -v
-
-# LLM-brain (требуется Hermes Agent)
-python3 test_hermes_cli_v2.py
 ```
 
 ## 🧪 Тесты
@@ -111,10 +120,10 @@ python3 test_hermes_cli_v2.py
 - [x] v0.4 — Мендель, мутации, фитнес, фенотип
 - [x] v0.5 — JSON-протокол, валидатор, rich perception
 - [x] v0.5.1 — 45 adversarial тестов: null/спуфинг/инъекции/dead norn/invisible unicode
-- [ ] v0.6 — C++ bridge (интеграция с openc2e)
-- [ ] v0.7 — Vision (LLaVA для визуального восприятия мира)
-- [ ] v0.8 — Multi-agent с LLM (каждый Норн — свой LLM-вызов)
-- [ ] v1.0 — Полноценная игра
+- [x] v0.7 — PIL-рендерер мира (vision perception pipeline)
+- [x] v0.8 — Multi-agent LLM: batch + parallel Norn decisions
+- [x] v0.6 — C++ bridge: IPC-протокол + интеграционный гайд для openc2e
+- [x] v1.0 — Игра: save/load, консольный UI, игровой цикл, 104 теста
 
 ## 📄 Лицензия
 
